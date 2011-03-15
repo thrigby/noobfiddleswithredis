@@ -3,16 +3,10 @@ require 'rubygems'
 require 'redis'
 
 r = Redis.new
-f = File.open("dictionery.txt")
+r.flushall
+f = File.open("dictionery.txt") do |f|
 f.each do |word|
-mycounter = 0
-    while mycounter <= word.length
-      key = word[0..mycounter] 
-      r.sadd ":#{key}", "#{word}"
-      puts "#{key}"
-      mycounter += 1
-    end
-    puts "-#{word.upcase}-"
+    word = word.chomp
+    word.length.times { |i| r.sadd word[0..i] , word }
+  end
 end
-puts "load data complete."
-f.close

@@ -1,0 +1,155 @@
+
+Hey.
+
+Ok... Looking this over...
+
+First thing is see here is this...
+
+      r.sadd ":#{key}", "#{word}"
+
+I see you're adding a ":" to beginning of the key string.  I'm assuming you're doing this b/c the other example used a :symbol for the key.  Well - this isn't a symbol anyhow - its a string with a colon on the front.  If you really wanted to turn a string into a symbol - the way to do it is
+
+    key.to_sym
+
+However the key does not need to be a symbol - a string works just as well.  This ":" you added doesn't hurt anything.  It just means each key will take 1 more byte of memory (no biggie) and also means you'll need to add a colon when searching.
+
+Here... I can pop into the redis-cli and do a smembers and you'll see
+
+orion@Nomad-2.local| ~ redis-cli 
+redis> smembers axem
+(empty list or set)
+
+redis> smembers :axem
+1. "axemen\n"
+2. "axeman\n"
+redis> 
+
+So we can shorten that line to
+
+      r.sadd "#{key}", "#{word}"
+
+Now because word and key are both strings already putting them in a lilly pad is a no-op.
+
+Consider this
+
+x = "foo"
+y = "#{x}"     ## now y also equals "foo" -- this was the exact same thing as y = x
+
+However if x was not a string
+
+x = 1
+y = "#{x}"    ## now y = "1" and not 1.  A string not an int.
+
+We can optimize this line by simply removing the lilly pad since we know they are strings anyway.
+
+
+      r.sadd key, word
+
+Much cleaner.
+
+Another line:
+
+      puts "#{key}"
+
+
+Doing a puts a half a million times is actually going to slow execution a lot.  There is so much output the process of scrolling your terminal will really slow things down.  I would remove the output unless you're trying to debug things so it will run faster.
+
+Next I'm seeing this
+
+
+    mycounter = 0
+    while mycounter <= word.length
+      key = word[0..mycounter] 
+      r.sadd key, word
+      mycounter += 1
+    end
+
+The process of starting from zero, incrementing by one and going to a limit already has a shortcut in Ruby.  You can do an interger.times.  Such as 
+
+10.times do |i|
+    puts i
+end
+
+We can do
+
+word.length.times do |mycounter|
+
+      key = word[0..mycounter] 
+      r.sadd key, word
+end
+
+In cases like this where you have an iterator over a loop.  Its such a common pattern that this is the one place where an iterator variable is easier to read than a descriptive one.  Thats the long way of saying its ok to call mycounter "i" here.  Any programmer reading it will see what you're doing
+
+word.length.times do |i|
+      key = word[0..i] 
+      r.sadd key, word
+end
+
+Now this is a matter of taste by since "key" only gets used once you COULD compress it assuming it does not reduce readability.
+
+word.length.times do |i|
+      r.sadd word[0..i] , word
+end
+
+That's matter of opinion.  This might be a little to compressed.  However since now the loop is only one line its fair game to compress into a {} block.
+
+word.length.times { |i| r.sadd word[0..i] , word }
+
+Might have lost some readability there so I probably went too far but damn is that tight.
+
+Now lets pop back into redis-cli and see whats in there
+
+redis> smembers axem
+1. "axemen\n"
+2. "axeman\n"
+redis> 
+
+Awww.. there's this ugly "\n" new line character at the end of every word.  We should have chomped that off when we read it from the file.  Lets add a 
+
+   word = word.chomp 
+
+At the top of the loop.  This removed any "\n" from the end of the strings which is such a common operation it has its own function.
+
+Next line I'm seeing is the f.close.  File.open has a nice feature where if you pass it a block it will close the handle for you at the end of the block.  Like the syntax as it means you can't accidently forget to close it.
+
+File.open("dictionery.txt") do |f|
+   f.each do |word|
+   end
+end
+
+Also we should purge the database before loading it so we can get old junk out of the way from a previous import.
+
+r.flushall
+
+Now the script looks like this
+
+r = Redis.new
+r.flushall
+File.open("dictionery.txt") do |f|
+  f.each do |word|
+    word = word.chomp
+    word.length.times { |i| r.sadd word[0..i] , word }
+  end
+end
+puts "load data complete."
+
+You can fetch the indexed words with redis-cli and just type 
+
+redis> smembers axem
+
+Or from IRB with
+
+orion@Nomad-2.local| ~ irb -r rubygems -r redis
+ruby-1.9.2-p0 > r = Redis.new
+ => #<Redis client v2.1.1 connected to redis://127.0.0.1:6379/0 (Redis v2.0.4)> 
+ruby-1.9.2-p0 > r.smembers "axem"
+ => ["axemen", "axeman"] 
+ruby-1.9.2-p0 > 
+
+Dictionary entry for axeman
+
+axeman US, axman [ˈæksmən]
+n pl -men
+  1. a man who wields an axe, esp to cut down trees
+  2. a person who whittles your code down to the bloody nub
+=end

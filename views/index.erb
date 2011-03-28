@@ -18,7 +18,7 @@ $(function() {
 	$("#searchform").submit(function() {
 		// load is an ajax call to /search line 19 of app.rb . take the result and shove it into the object
 		// ajax is when your javascript code goes browsing without you
-		$("#output").load("/ajax_search", "key=" + $("#key").val());
+		$("#output").load("/search", "key=" + $("#key").val());
 		//dig into the form, find the input whose id = key, grab the value that the user had typed in.
 		return false;
 	});

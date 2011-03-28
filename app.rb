@@ -19,11 +19,6 @@ end
 get '/search' do
   key =  params["key"];
   @results = redis.smembers(key)
-  erb :search
+  erb :search, :layout => !request.xhr?
 end
 
-get '/ajax_search' do
-  key =  params["key"];
-  @results = redis.smembers(key)
-  erb :search, :layout => false
-end

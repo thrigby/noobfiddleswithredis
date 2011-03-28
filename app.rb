@@ -2,9 +2,9 @@
 #(fixed a tiny bug!)
 
 require 'rubygems'
-require 'haml'
 require 'sinatra'
 require 'redis'
+require 'erb'
 
 helpers do
   def redis
@@ -12,22 +12,18 @@ helpers do
   end
 end
 
-get "/" do
-  @keys = redis.keys("*")
-  haml :index
+get '/' do
+  erb :index
 end
 
-get "/:key" do
-  @key = params[:key]
-  @data = case redis.type(@key)
-  when "string"
-    Array(redis[@key])
-  when "list"
-    redis.lrange(@key, 0, -1)
-  when "set"
-    redis.smembers(@key)
-  else
-    []
-  end
-  haml :show
+get '/search' do
+  key =  params["key"];
+  @results = redis.smembers(key)
+  erb :search
+end
+
+get '/ajax_search' do
+  key =  params["key"];
+  @results = redis.smembers(key)
+  erb :search, :layout => false
 end

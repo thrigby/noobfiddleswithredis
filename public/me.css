@@ -1,6 +1,0 @@
-/* this is a CSS comment */
-li { background-color: lightblue; margin: 3px; width: 150px; text-align: center;}
-#output { border: solid black 1px; background-color: lightgray; margin: 2em; width: 400px;}
-#mainbox { border: solid black 2px; padding: 2em;background-color: white; padding: 1em; }
-body { background-color: black;}
-/* these are CSS selectors above left of the {} */
